@@ -9,8 +9,18 @@ const MAX_CLIENTS := 64
 
 
 func _ready() -> void:
+	print(
+		"DedicatedServer: _ready env MPGAMESTICK_DEDICATED=%s args=%s"
+		% [OS.get_environment("MPGAMESTICK_DEDICATED"), str(OS.get_cmdline_args())]
+	)
 	if _want_dedicated():
-		_begin()
+		call_deferred("_begin")
+	else:
+		print("DedicatedServer: normal client build — лобби, без ENet-сервера.")
+
+
+func _goto_main() -> void:
+	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
 
 func _want_dedicated() -> bool:
@@ -42,4 +52,4 @@ func _begin() -> void:
 	get_tree().multiplayer.multiplayer_peer = peer
 	GameState.display_name = "Сервер"
 	print("Dedicated ENet server on UDP %d (max %d clients)" % [PORT, MAX_CLIENTS])
-	get_tree().change_scene_to_file("res://scenes/Main.tscn")
+	call_deferred("_goto_main")
