@@ -35,13 +35,15 @@ func _want_dedicated() -> bool:
 
 ## Вызов из `Dedicated.tscn`, если эту сцену запускаешь как главную в редакторе.
 func run_from_dedicated_scene() -> void:
-	if multiplayer.multiplayer_peer != null:
+	if get_tree().multiplayer.multiplayer_peer is ENetMultiplayerPeer:
 		return
 	_begin()
 
 
 func _begin() -> void:
-	if multiplayer.multiplayer_peer != null:
+	# Нельзя проверять `!= null`: по умолчанию может быть OfflineMultiplayerPeer — не null,
+	# и сервер бы никогда не поднялся.
+	if get_tree().multiplayer.multiplayer_peer is ENetMultiplayerPeer:
 		return
 	var peer := ENetMultiplayerPeer.new()
 	var err := peer.create_server(PORT, MAX_CLIENTS)
