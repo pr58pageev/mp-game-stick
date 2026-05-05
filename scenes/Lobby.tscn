@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://b1lobby00001"]
+[gd_scene format=3 uid="uid://b1lobby00001"]
 
 [ext_resource type="Script" path="res://scripts/Lobby.gd" id="1_script"]
 
@@ -56,7 +56,7 @@ text = "IP хоста:"
 [node name="HostAddressEdit" type="LineEdit" parent="VBox/AddressRow"]
 layout_mode = 2
 size_flags_horizontal = 3
-placeholder_text = "127.0.0.1 или IP в Wi‑Fi"
+placeholder_text = "По умолчанию из config; для теста — 127.0.0.1"
 
 [node name="Buttons" type="HBoxContainer" parent="VBox"]
 layout_mode = 2
