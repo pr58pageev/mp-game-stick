@@ -1,0 +1,76 @@
+name: Build iOS (unsigned IPA)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  GODOT_VERSION: 4.6.2-stable
+  GODOT_VERSION_DOTTED: 4.6.2.stable
+  IOS_PRESET: iOS
+  APP_NAME: MPGameStick
+
+jobs:
+  build-ios:
+    runs-on: macos-14
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Godot (headless)
+        run: |
+          curl -L \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_macos.universal.zip" \
+            -o godot.zip
+          unzip -q godot.zip -d godot
+
+      - name: Download iOS export templates
+        run: |
+          curl -L \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz" \
+            -o templates.tpz
+          mkdir -p "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION_DOTTED}"
+          unzip -q templates.tpz
+          mv templates/* "$HOME/Library/Application Support/Godot/export_templates/${GODOT_VERSION_DOTTED}/"
+
+      - name: Import project (warm cache)
+        run: |
+          godot/Godot.app/Contents/MacOS/Godot --headless --path . --import || true
+
+      - name: Export Xcode project
+        run: |
+          mkdir -p build/ios
+          godot/Godot.app/Contents/MacOS/Godot --headless --path . \
+            --export-release "${IOS_PRESET}" "build/ios/${APP_NAME}.xcodeproj"
+
+      - name: Build unsigned archive
+        run: |
+          xcodebuild archive \
+            -project "build/ios/${APP_NAME}.xcodeproj" \
+            -scheme "${APP_NAME}" \
+            -archivePath "build/ios/App.xcarchive" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            CODE_SIGN_STYLE=Manual \
+            CODE_SIGN_IDENTITY="" \
+            PROVISIONING_PROFILE_SPECIFIER="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Package IPA
+        run: |
+          cd build/ios
+          mkdir -p Payload
+          cp -R App.xcarchive/Products/Applications/*.app Payload/
+          zip -r "${APP_NAME}.ipa" Payload
+          mv "${APP_NAME}.ipa" ../../
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APP_NAME }}-iOS-unsigned
+          path: ${{ env.APP_NAME }}.ipa
+          retention-days: 14

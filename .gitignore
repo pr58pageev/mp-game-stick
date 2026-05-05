@@ -1,0 +1,12 @@
+# Godot 4+ specific ignores
+.godot/
+/android/
+/build/
+
+# Export preset secrets (signing keys etc.) — never commit
+export_presets.cfg.secrets
+
+# .NET / C# leftovers (in case Godot regenerates them)
+*.csproj
+*.sln
+.mono/
