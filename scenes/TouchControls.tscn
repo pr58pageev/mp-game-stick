@@ -12,7 +12,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 
-[node name="LeftButton" type="Button" parent="Root"]
+[node name="LeftButton" type="Panel" parent="Root"]
 layout_mode = 1
 anchor_top = 1.0
 anchor_bottom = 1.0
@@ -20,11 +20,21 @@ offset_left = 40.0
 offset_top = -180.0
 offset_right = 180.0
 offset_bottom = -40.0
-modulate = Color(1, 1, 1, 0.7)
+mouse_filter = 2
+modulate = Color(1, 1, 1, 0.6)
+
+[node name="LeftLabel" type="Label" parent="Root/LeftButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
 theme_override_font_sizes/font_size = 64
 text = "<"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="RightButton" type="Button" parent="Root"]
+[node name="RightButton" type="Panel" parent="Root"]
 layout_mode = 1
 anchor_top = 1.0
 anchor_bottom = 1.0
@@ -32,11 +42,21 @@ offset_left = 200.0
 offset_top = -180.0
 offset_right = 340.0
 offset_bottom = -40.0
-modulate = Color(1, 1, 1, 0.7)
+mouse_filter = 2
+modulate = Color(1, 1, 1, 0.6)
+
+[node name="RightLabel" type="Label" parent="Root/RightButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
 theme_override_font_sizes/font_size = 64
 text = ">"
+horizontal_alignment = 1
+vertical_alignment = 1
 
-[node name="JumpButton" type="Button" parent="Root"]
+[node name="JumpButton" type="Panel" parent="Root"]
 layout_mode = 1
 anchor_left = 1.0
 anchor_top = 1.0
@@ -46,6 +66,16 @@ offset_left = -180.0
 offset_top = -180.0
 offset_right = -40.0
 offset_bottom = -40.0
-modulate = Color(1, 1, 1, 0.7)
+mouse_filter = 2
+modulate = Color(1, 1, 1, 0.6)
+
+[node name="JumpLabel" type="Label" parent="Root/JumpButton"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+mouse_filter = 2
 theme_override_font_sizes/font_size = 64
 text = "^"
+horizontal_alignment = 1
+vertical_alignment = 1

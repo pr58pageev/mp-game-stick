@@ -1,13 +1,46 @@
 extends CanvasLayer
 
+# Maps active touch index → currently pressed action name.
+var _active_touches: Dictionary = {}
 
-func _ready() -> void:
-	_wire("Root/LeftButton", "move_left")
-	_wire("Root/RightButton", "move_right")
-	_wire("Root/JumpButton", "jump")
+@onready var _left_button: Control = $Root/LeftButton
+@onready var _right_button: Control = $Root/RightButton
+@onready var _jump_button: Control = $Root/JumpButton
 
 
-func _wire(path: String, action: String) -> void:
-	var button := get_node(path) as Button
-	button.button_down.connect(func() -> void: Input.action_press(action))
-	button.button_up.connect(func() -> void: Input.action_release(action))
+func _input(event: InputEvent) -> void:
+	if event is InputEventScreenTouch:
+		if event.pressed:
+			var action := _action_at(event.position)
+			if action != "":
+				_press(event.index, action)
+		else:
+			_release(event.index)
+	elif event is InputEventScreenDrag:
+		var current: String = _active_touches.get(event.index, "")
+		var new_action := _action_at(event.position)
+		if new_action != current:
+			_release(event.index)
+			if new_action != "":
+				_press(event.index, new_action)
+
+
+func _press(touch_index: int, action: String) -> void:
+	_active_touches[touch_index] = action
+	Input.action_press(action)
+
+
+func _release(touch_index: int) -> void:
+	if _active_touches.has(touch_index):
+		Input.action_release(_active_touches[touch_index])
+		_active_touches.erase(touch_index)
+
+
+func _action_at(pos: Vector2) -> String:
+	if _left_button.get_global_rect().has_point(pos):
+		return "move_left"
+	if _right_button.get_global_rect().has_point(pos):
+		return "move_right"
+	if _jump_button.get_global_rect().has_point(pos):
+		return "jump"
+	return ""
