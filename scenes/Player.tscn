@@ -9,9 +9,21 @@ size = Vector2(64, 64)
 [node name="Player" type="CharacterBody2D"]
 script = ExtResource("1_script")
 
+[node name="NameLabel" type="Label" parent="."]
+offset_left = -80.0
+offset_top = -78.0
+offset_right = 80.0
+offset_bottom = -12.0
+theme_override_font_sizes/font_size = 18
+horizontal_alignment = 1
+vertical_alignment = 2
+text = ""
+
 [node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, 8)
 scale = Vector2(0.5, 0.5)
 texture = ExtResource("2_icon")
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, 8)
 shape = SubResource("RectangleShape2D_body")

@@ -1,0 +1,82 @@
+[gd_scene load_steps=2 format=3 uid="uid://b1lobby00001"]
+
+[ext_resource type="Script" path="res://scripts/Lobby.gd" id="1_script"]
+
+[node name="Lobby" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="VBox" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -280.0
+offset_top = -160.0
+offset_right = 280.0
+offset_bottom = 160.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 28
+text = "MPGameStick — сеть"
+horizontal_alignment = 1
+
+[node name="NameRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+
+[node name="NameLabel" type="Label" parent="VBox/NameRow"]
+layout_mode = 2
+size_flags_horizontal = 0
+text = "Имя:"
+
+[node name="NameEdit" type="LineEdit" parent="VBox/NameRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "Ваш ник"
+
+[node name="AddressRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+
+[node name="AddrLabel" type="Label" parent="VBox/AddressRow"]
+layout_mode = 2
+size_flags_horizontal = 0
+text = "IP хоста:"
+
+[node name="HostAddressEdit" type="LineEdit" parent="VBox/AddressRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+placeholder_text = "127.0.0.1 или IP в Wi‑Fi"
+
+[node name="Buttons" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+alignment = 1
+theme_override_constants/separation = 24
+
+[node name="HostButton" type="Button" parent="VBox/Buttons"]
+layout_mode = 2
+text = "Я хост (игрок 1)"
+
+[node name="JoinButton" type="Button" parent="VBox/Buttons"]
+layout_mode = 2
+text = "Подключиться"
+
+[node name="Status" type="Label" parent="VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 16
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[connection signal="pressed" from="VBox/Buttons/HostButton" to="." method="_on_host_pressed"]
+[connection signal="pressed" from="VBox/Buttons/JoinButton" to="." method="_on_join_pressed"]
