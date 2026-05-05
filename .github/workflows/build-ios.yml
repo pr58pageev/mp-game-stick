@@ -20,6 +20,17 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select latest Xcode
+        run: |
+          ls /Applications | grep -i xcode || true
+          sudo xcode-select -s /Applications/Xcode_16.4.app || \
+            sudo xcode-select -s /Applications/Xcode_16.3.app || \
+            sudo xcode-select -s /Applications/Xcode_16.2.app || \
+            sudo xcode-select -s /Applications/Xcode_16.1.app || \
+            sudo xcode-select -s /Applications/Xcode_16.0.app || true
+          xcodebuild -version
+          swift --version
+
       - name: Download Godot (headless)
         run: |
           curl -L \
