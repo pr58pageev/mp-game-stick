@@ -5,7 +5,6 @@ extends Node
 ## Локально:  ./MPGameStick.x86_64 --headless --dedicated
 
 const PORT := 7777
-const MAX_CLIENTS := 64
 
 
 func _ready() -> void:
@@ -35,7 +34,8 @@ func _want_dedicated() -> bool:
 
 ## Вызов из `Dedicated.tscn`, если эту сцену запускаешь как главную в редакторе.
 func run_from_dedicated_scene() -> void:
-	if get_tree().multiplayer.multiplayer_peer is ENetMultiplayerPeer:
+	var mp := get_tree().get_multiplayer()
+	if mp.multiplayer_peer is ENetMultiplayerPeer:
 		return
 	_begin()
 
@@ -43,15 +43,17 @@ func run_from_dedicated_scene() -> void:
 func _begin() -> void:
 	# Нельзя проверять `!= null`: по умолчанию может быть OfflineMultiplayerPeer — не null,
 	# и сервер бы никогда не поднялся.
-	if get_tree().multiplayer.multiplayer_peer is ENetMultiplayerPeer:
+	var mp := get_tree().get_multiplayer()
+	if mp.multiplayer_peer is ENetMultiplayerPeer:
 		return
 	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_server(PORT, MAX_CLIENTS)
+	var err := peer.create_server(PORT, GameState.MAX_PLAYERS)
 	if err != OK:
 		push_error("DedicatedServer: create_server failed: %s" % err)
 		get_tree().quit(1)
 		return
-	get_tree().multiplayer.multiplayer_peer = peer
+	mp.multiplayer_peer = peer
+	GameState.is_dedicated_server = true
 	GameState.display_name = "Сервер"
-	print("Dedicated ENet server on UDP %d (max %d clients)" % [PORT, MAX_CLIENTS])
+	print("Dedicated ENet server on UDP %d (max %d clients)" % [PORT, GameState.MAX_PLAYERS])
 	call_deferred("_goto_main")

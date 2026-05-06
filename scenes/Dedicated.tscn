@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://b1dedicated001"]
+[gd_scene format=3 uid="uid://ceabnhh1wcvnk"]
 
 [ext_resource type="Script" path="res://scripts/Dedicated.gd" id="1_script"]
 

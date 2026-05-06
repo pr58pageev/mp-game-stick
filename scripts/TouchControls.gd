@@ -2,10 +2,32 @@ extends CanvasLayer
 
 # Maps active touch index → currently pressed action name.
 var _active_touches: Dictionary = {}
+var _base_modulate: Dictionary = {}
 
 @onready var _left_button: Control = $Root/LeftButton
 @onready var _right_button: Control = $Root/RightButton
+@onready var _attack_button: Control = $Root/AttackButton
 @onready var _jump_button: Control = $Root/JumpButton
+
+
+func _ready() -> void:
+	for b in [_left_button, _right_button, _attack_button, _jump_button]:
+		_base_modulate[b] = b.modulate
+
+
+func _process(_delta: float) -> void:
+	_update_visual(_left_button, "move_left")
+	_update_visual(_right_button, "move_right")
+	_update_visual(_attack_button, "attack")
+	_update_visual(_jump_button, "jump")
+
+
+func _update_visual(btn: Control, action: String) -> void:
+	var base: Color = _base_modulate[btn]
+	if Input.is_action_pressed(action):
+		btn.modulate = Color(base.r, base.g, base.b, minf(1.0, base.a + 0.38))
+	else:
+		btn.modulate = base
 
 
 func _input(event: InputEvent) -> void:
@@ -41,6 +63,8 @@ func _action_at(pos: Vector2) -> String:
 		return "move_left"
 	if _right_button.get_global_rect().has_point(pos):
 		return "move_right"
+	if _attack_button.get_global_rect().has_point(pos):
+		return "attack"
 	if _jump_button.get_global_rect().has_point(pos):
 		return "jump"
 	return ""

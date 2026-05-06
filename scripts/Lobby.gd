@@ -39,13 +39,13 @@ func _on_host_pressed() -> void:
 		_status.text = "Введите имя."
 		return
 	var peer := ENetMultiplayerPeer.new()
-	var err := peer.create_server(PORT, 2)
+	var err := peer.create_server(PORT, GameState.MAX_PLAYERS)
 	if err != OK:
 		_status.text = "Не удалось создать сервер: %s" % err
 		return
 	multiplayer.multiplayer_peer = peer
 	GameState.display_name = n
-	_status.text = "Сервер запущен. Ожидайте второго игрока…"
+	_status.text = "Сервер запущен. Ожидайте игроков (до %d)…" % GameState.MAX_PLAYERS
 	get_tree().change_scene_to_file("res://scenes/Main.tscn")
 
 

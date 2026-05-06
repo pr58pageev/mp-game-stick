@@ -1,8 +1,8 @@
 [gd_scene format=3 uid="uid://b1lobby00001"]
 
-[ext_resource type="Script" path="res://scripts/Lobby.gd" id="1_script"]
+[ext_resource type="Script" uid="uid://bd0oe1hv2qd35" path="res://scripts/Lobby.gd" id="1_script"]
 
-[node name="Lobby" type="Control"]
+[node name="Lobby" type="Control" unique_id=1211182993]
 layout_mode = 3
 anchors_preset = 15
 anchor_right = 1.0
@@ -11,7 +11,7 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_script")
 
-[node name="VBox" type="VBoxContainer" parent="."]
+[node name="VBox" type="VBoxContainer" parent="." unique_id=650979974]
 layout_mode = 1
 anchors_preset = 8
 anchor_left = 0.5
@@ -26,55 +26,54 @@ grow_horizontal = 2
 grow_vertical = 2
 theme_override_constants/separation = 12
 
-[node name="Title" type="Label" parent="VBox"]
+[node name="Title" type="Label" parent="VBox" unique_id=1291992388]
 layout_mode = 2
 theme_override_font_sizes/font_size = 28
 text = "MPGameStick — сеть"
 horizontal_alignment = 1
 
-[node name="NameRow" type="HBoxContainer" parent="VBox"]
+[node name="NameRow" type="HBoxContainer" parent="VBox" unique_id=1868653265]
 layout_mode = 2
 
-[node name="NameLabel" type="Label" parent="VBox/NameRow"]
+[node name="NameLabel" type="Label" parent="VBox/NameRow" unique_id=1429131231]
 layout_mode = 2
 size_flags_horizontal = 0
 text = "Имя:"
 
-[node name="NameEdit" type="LineEdit" parent="VBox/NameRow"]
+[node name="NameEdit" type="LineEdit" parent="VBox/NameRow" unique_id=372044189]
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "Ваш ник"
 
-[node name="AddressRow" type="HBoxContainer" parent="VBox"]
+[node name="AddressRow" type="HBoxContainer" parent="VBox" unique_id=1439547843]
 layout_mode = 2
 
-[node name="AddrLabel" type="Label" parent="VBox/AddressRow"]
+[node name="AddrLabel" type="Label" parent="VBox/AddressRow" unique_id=1749287922]
 layout_mode = 2
 size_flags_horizontal = 0
 text = "IP хоста:"
 
-[node name="HostAddressEdit" type="LineEdit" parent="VBox/AddressRow"]
+[node name="HostAddressEdit" type="LineEdit" parent="VBox/AddressRow" unique_id=184578869]
 layout_mode = 2
 size_flags_horizontal = 3
 placeholder_text = "По умолчанию из config; для теста — 127.0.0.1"
 
-[node name="Buttons" type="HBoxContainer" parent="VBox"]
+[node name="Buttons" type="HBoxContainer" parent="VBox" unique_id=1092374082]
 layout_mode = 2
-alignment = 1
 theme_override_constants/separation = 24
+alignment = 1
 
-[node name="HostButton" type="Button" parent="VBox/Buttons"]
+[node name="HostButton" type="Button" parent="VBox/Buttons" unique_id=367107847]
 layout_mode = 2
 text = "Я хост (игрок 1)"
 
-[node name="JoinButton" type="Button" parent="VBox/Buttons"]
+[node name="JoinButton" type="Button" parent="VBox/Buttons" unique_id=1480552002]
 layout_mode = 2
 text = "Подключиться"
 
-[node name="Status" type="Label" parent="VBox"]
+[node name="Status" type="Label" parent="VBox" unique_id=1957259549]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
-text = ""
 horizontal_alignment = 1
 autowrap_mode = 2
 
