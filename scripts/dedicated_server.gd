@@ -56,4 +56,8 @@ func _begin() -> void:
 	GameState.is_dedicated_server = true
 	GameState.display_name = "Сервер"
 	print("Dedicated ENet server on UDP %d (max %d clients)" % [PORT, GameState.MAX_PLAYERS])
+	print(
+		"DedicatedServer: проверка порта на Ubuntu — "
+		+ "sudo ss -ulpn | grep 7777 ; sudo ufw status ; sudo ufw allow 7777/udp"
+	)
 	call_deferred("_goto_main")

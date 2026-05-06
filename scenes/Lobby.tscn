@@ -71,6 +71,14 @@ text = "Я хост (игрок 1)"
 layout_mode = 2
 text = "Подключиться"
 
+[node name="TestServerRow" type="HBoxContainer" parent="VBox" unique_id=2100999001]
+layout_mode = 2
+alignment = 1
+
+[node name="JoinTestServerButton" type="Button" parent="VBox/TestServerRow" unique_id=2100999002]
+layout_mode = 2
+text = "Тестовый сервер (178.57.222.23)"
+
 [node name="Status" type="Label" parent="VBox" unique_id=1957259549]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
@@ -79,3 +87,4 @@ autowrap_mode = 2
 
 [connection signal="pressed" from="VBox/Buttons/HostButton" to="." method="_on_host_pressed"]
 [connection signal="pressed" from="VBox/Buttons/JoinButton" to="." method="_on_join_pressed"]
+[connection signal="pressed" from="VBox/TestServerRow/JoinTestServerButton" to="." method="_on_join_test_server_pressed"]

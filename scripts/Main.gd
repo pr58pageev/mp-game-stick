@@ -16,6 +16,26 @@ const BOT_SPAWN_POS := Vector2(900, 400)
 
 var _scores: Dictionary = {}
 var _shove_last_ms: Dictionary = {}
+## Чтобы не сменить сцену дважды при ручном выходе и server_disconnected.
+var _leave_arena_manual: bool = false
+
+
+func _mp_log(msg: String) -> void:
+	print("%s %s" % [Time.get_datetime_string_from_system(), msg])
+
+
+func _server_role_tag() -> String:
+	return "Dedicated" if GameState.is_dedicated_server else "Host"
+
+
+func _enet_peer_addr_suffix(peer_id: int) -> String:
+	var enet := multiplayer.multiplayer_peer as ENetMultiplayerPeer
+	if enet == null:
+		return ""
+	var pkt = enet.get_peer(peer_id)
+	if pkt == null:
+		return ""
+	return " addr=%s:%d" % [pkt.get_remote_address(), pkt.get_remote_port()]
 
 
 func _ready() -> void:
@@ -27,6 +47,13 @@ func _ready() -> void:
 		$TouchControls.visible = not GameState.is_dedicated_server
 	if has_node("UIScore"):
 		$UIScore.visible = not GameState.is_dedicated_server
+	if has_node("UIScore/LeaveLobbyButton"):
+		var leave_btn: Button = $UIScore/LeaveLobbyButton
+		leave_btn.visible = (
+			multiplayer.multiplayer_peer != null and not GameState.is_dedicated_server
+		)
+		if not leave_btn.pressed.is_connected(_on_leave_lobby_pressed):
+			leave_btn.pressed.connect(_on_leave_lobby_pressed)
 
 	if multiplayer.multiplayer_peer == null:
 		_spawn_player(1, Vector2(640, 400), "Локально")
@@ -35,6 +62,10 @@ func _ready() -> void:
 		return
 
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
+	if multiplayer.is_server():
+		multiplayer.peer_connected.connect(_on_peer_connected_server)
+	if not multiplayer.is_server():
+		multiplayer.server_disconnected.connect(_on_server_disconnected_while_in_arena)
 
 	if multiplayer.is_server():
 		if not GameState.is_dedicated_server:
@@ -330,6 +361,35 @@ func net_scores_updated(scores: Dictionary) -> void:
 	_refresh_scoreboard()
 
 
+func _on_leave_lobby_pressed() -> void:
+	if GameState.is_dedicated_server:
+		return
+	_leave_arena_manual = true
+	if multiplayer.multiplayer_peer != null:
+		if multiplayer.is_server():
+			print("[Main] host выходит в лобби — закрываю ENet-сервер")
+		else:
+			print("[Main] клиент выходит в лобби — отключение от сервера")
+		multiplayer.multiplayer_peer.close()
+		multiplayer.multiplayer_peer = null
+	get_tree().change_scene_to_file("res://scenes/Lobby.tscn")
+
+
+func _on_server_disconnected_while_in_arena() -> void:
+	if _leave_arena_manual:
+		return
+	print("[Main] server_disconnected — хост закрыл игру, возврат в лобби")
+	multiplayer.multiplayer_peer = null
+	get_tree().change_scene_to_file("res://scenes/Lobby.tscn")
+
+
+func _on_peer_connected_server(id: int) -> void:
+	_mp_log(
+		"[%s][server] peer_connected id=%d%s peers=%s"
+		% [_server_role_tag(), id, _enet_peer_addr_suffix(id), str(multiplayer.get_peers())]
+	)
+
+
 func _refresh_scoreboard() -> void:
 	if _score_label == null:
 		return
@@ -354,11 +414,27 @@ func _refresh_scoreboard() -> void:
 func _on_peer_disconnected(id: int) -> void:
 	if not multiplayer.is_server():
 		return
-	var path := NodePath(str(id))
+	var addr := _enet_peer_addr_suffix(id)
+	_mp_log("[%s][server] peer_disconnected id=%d%s" % [_server_role_tag(), id, addr])
+	_svr_remove_peer_player(id)
+	_broadcast_scores()
+	net_peer_left.rpc(id)
+
+
+## Удалить куклу у всех клиентов (на сервере узел уже удалён в _svr_remove_peer_player).
+@rpc("authority", "call_remote", "reliable")
+func net_peer_left(peer_id: int) -> void:
+	_mp_log("[client] net_peer_left удаляю peer_id=%d" % peer_id)
+	var path := NodePath(str(peer_id))
 	if _players.has_node(path):
 		_players.get_node(path).queue_free()
-	_scores.erase(id)
-	_broadcast_scores()
+
+
+func _svr_remove_peer_player(peer_id: int) -> void:
+	var path := NodePath(str(peer_id))
+	if _players.has_node(path):
+		_players.get_node(path).queue_free()
+	_scores.erase(peer_id)
 
 
 func _spawn_player(peer_id: int, pos: Vector2, pname: String) -> void:
@@ -382,6 +458,16 @@ func client_hello(pname: String) -> void:
 	if not multiplayer.is_server():
 		return
 	var who := multiplayer.get_remote_sender_id()
+	_mp_log(
+		"[%s][server] client_hello (в игре) id=%d name=\"%s\"%s players_children=%d"
+		% [
+			_server_role_tag(),
+			who,
+			pname,
+			_enet_peer_addr_suffix(who),
+			_players.get_child_count(),
+		]
+	)
 	for c in _players.get_children():
 		if c.is_in_group("pushable_dummy") or str(c.name) == "Bot":
 			continue

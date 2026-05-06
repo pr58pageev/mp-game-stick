@@ -42,3 +42,11 @@ offset_bottom = 220.0
 theme_override_font_sizes/font_size = 20
 text = "Очки: —"
 autowrap_mode = 2
+
+[node name="LeaveLobbyButton" type="Button" parent="UIScore"]
+offset_left = 16.0
+offset_top = 232.0
+offset_right = 320.0
+offset_bottom = 278.0
+theme_override_font_sizes/font_size = 18
+text = "Выйти в лобби"
