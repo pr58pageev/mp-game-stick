@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="a9c86acb-c8af-4fe4-91a6-89af387ec9c8" name="GAME IHC MY">
+        <fileTransfer rootFolder="/home/game/mp-game-stick" accessType="SFTP" host="178.57.222.23" port="22" sshConfigId="d60a0140-61de-4b8a-b061-eab9a283b1c6" sshConfig="root@178.57.222.23:22 password">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" keepAliveTimeout="0" passiveMode="true" shareSSLContext="true" />
+          </advancedOptions>
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
