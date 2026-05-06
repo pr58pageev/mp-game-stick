@@ -7,15 +7,19 @@ const ATTACK_DAMAGE := 35.0
 const PLAYER_MAX_HP := 100.0
 const SHOVE_RANGE := 380.0
 const SHOVE_COOLDOWN_MS := 160
+const SHOVE_IMPULSE_MAX := 580.0
 ## to_id==0 в notify_player_shove = толкать манекена «Bot».
 const SHOVE_TARGET_BOT_ID := 0
-const BOT_SPAWN_POS := Vector2(900, 400)
+const BOT_SPAWN_POS := Vector2(3500, 400)
 
 @onready var _players: Node2D = $Players
 @onready var _score_label: Label = $UIScore/ScoreLabel
+@onready var _arena_camera: Camera2D = $ArenaCamera
 
 var _scores: Dictionary = {}
 var _shove_last_ms: Dictionary = {}
+## Адрес для логов: при peer_disconnected get_remote_* уже может падать (внутренний peer null).
+var _enet_log_addr_by_peer: Dictionary = {}
 ## Чтобы не сменить сцену дважды при ручном выходе и server_disconnected.
 var _leave_arena_manual: bool = false
 
@@ -24,18 +28,86 @@ func _mp_log(msg: String) -> void:
 	print("%s %s" % [Time.get_datetime_string_from_system(), msg])
 
 
+## Сервер шлёт строку атакующему peer — видно в Output клиента в Godot (не только journal на VPS).
+@rpc("authority", "call_remote", "reliable")
+func shove_debug_to_client(line: String) -> void:
+	print(line)
+
+
+func _shove_log_attacker(from_id: int, msg: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var line := "%s %s" % [Time.get_datetime_string_from_system(), msg]
+	print(line)
+	if multiplayer.multiplayer_peer == null:
+		return
+	if from_id == multiplayer.get_unique_id():
+		return
+	if from_id in multiplayer.get_peers():
+		shove_debug_to_client.rpc_id(from_id, line)
+
+
 func _server_role_tag() -> String:
 	return "Dedicated" if GameState.is_dedicated_server else "Host"
 
 
-func _enet_peer_addr_suffix(peer_id: int) -> String:
+func _enet_refresh_peer_log_suffix(peer_id: int) -> void:
 	var enet := multiplayer.multiplayer_peer as ENetMultiplayerPeer
 	if enet == null:
-		return ""
-	var pkt = enet.get_peer(peer_id)
+		return
+	var pkt := enet.get_peer(peer_id)
 	if pkt == null:
-		return ""
-	return " addr=%s:%d" % [pkt.get_remote_address(), pkt.get_remote_port()]
+		return
+	if pkt.get_state() != ENetPacketPeer.STATE_CONNECTED:
+		return
+	_enet_log_addr_by_peer[peer_id] = (
+		" addr=%s:%d" % [pkt.get_remote_address(), pkt.get_remote_port()]
+	)
+
+
+func _enet_peer_addr_suffix(peer_id: int) -> String:
+	_enet_refresh_peer_log_suffix(peer_id)
+	return str(_enet_log_addr_by_peer.get(peer_id, ""))
+
+
+func _enet_disconnect_log_suffix(peer_id: int) -> String:
+	var s: Variant = _enet_log_addr_by_peer.get(peer_id, "")
+	_enet_log_addr_by_peer.erase(peer_id)
+	return str(s)
+
+
+func _setup_arena_camera() -> void:
+	if _arena_camera == null:
+		return
+	if GameState.is_dedicated_server:
+		_arena_camera.enabled = false
+		return
+	_arena_camera.enabled = true
+	_arena_camera.position_smoothing_enabled = true
+	_arena_camera.position_smoothing_speed = 10.0
+	_arena_camera.limit_left = int(GameState.ARENA_X_MIN - 120)
+	_arena_camera.limit_right = int(GameState.ARENA_X_MAX + 120)
+	_arena_camera.limit_top = int(-160)
+	_arena_camera.limit_bottom = int(900)
+	_arena_camera.make_current()
+
+
+func _physics_process(_delta: float) -> void:
+	if _arena_camera == null or not _arena_camera.enabled:
+		return
+	var target: Node2D = null
+	if multiplayer.multiplayer_peer == null:
+		target = _players.get_node_or_null("1") as Node2D
+		if target == null:
+			for c in _players.get_children():
+				if c is CharacterBody2D and str(c.name) != "Bot":
+					target = c as Node2D
+					break
+	else:
+		var uid := multiplayer.get_unique_id()
+		target = _players.get_node_or_null(str(uid)) as Node2D
+	if target:
+		_arena_camera.global_position = target.global_position
 
 
 func _ready() -> void:
@@ -56,9 +128,10 @@ func _ready() -> void:
 			leave_btn.pressed.connect(_on_leave_lobby_pressed)
 
 	if multiplayer.multiplayer_peer == null:
-		_spawn_player(1, Vector2(640, 400), "Локально")
+		_spawn_player(1, Vector2(2000, 400), "Локально")
 		_spawn_bot_at(BOT_SPAWN_POS)
 		_refresh_scoreboard()
+		_setup_arena_camera()
 		return
 
 	multiplayer.peer_disconnected.connect(_on_peer_disconnected)
@@ -69,13 +142,14 @@ func _ready() -> void:
 
 	if multiplayer.is_server():
 		if not GameState.is_dedicated_server:
-			_spawn_player(1, Vector2(420, 400), GameState.display_name)
+			_spawn_player(1, Vector2(2000, 400), GameState.display_name)
 	else:
 		client_hello.rpc_id(1, GameState.display_name)
 
 	_refresh_scoreboard()
 	if multiplayer.is_server() and not GameState.is_dedicated_server:
 		call_deferred("_server_spawn_bot_if_needed")
+	_setup_arena_camera()
 
 
 func player_request_attack(attacker_id: int) -> void:
@@ -137,18 +211,22 @@ func request_player_shove(from_id: int, to_id: int, impulse_x: float) -> void:
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender != from_id:
-		_mp_log("[SHOVE] Main.request reject sender=%d from_id=%d imp=%.1f" % [sender, from_id, impulse_x])
+		_shove_log_attacker(
+			sender,
+			"[SHOVE] Main.request reject sender=%d from_id=%d imp=%.1f (подделка id?)"
+			% [sender, from_id, impulse_x]
+		)
 		return
-	_mp_log(
-		"[SHOVE] Main.request ok -> _apply from=%d to=%d imp=%.1f"
-		% [from_id, to_id, impulse_x]
+	_shove_log_attacker(
+		from_id,
+		"[SHOVE] Main.request ok -> _apply from=%d to=%d imp=%.1f" % [from_id, to_id, impulse_x]
 	)
 	_apply_shove_server(from_id, to_id, impulse_x)
 
 
 func _apply_shove_server(from_id: int, to_id: int, impulse_x: float) -> void:
 	if from_id == to_id:
-		_mp_log("[SHOVE] Main._apply skip: from==to id=%d" % from_id)
+		_shove_log_attacker(from_id, "[SHOVE] Main._apply skip: from==to id=%d" % from_id)
 		return
 	if to_id == SHOVE_TARGET_BOT_ID:
 		_apply_shove_to_bot(from_id, impulse_x)
@@ -159,19 +237,22 @@ func _apply_shove_server(from_id: int, to_id: int, impulse_x: float) -> void:
 		var child_names := PackedStringArray()
 		for ch in _players.get_children():
 			child_names.append(str(ch.name))
-		_mp_log(
+		_shove_log_attacker(
+			from_id,
 			"[SHOVE] Main._apply skip: missing node from_id=%d to_id=%d a=%s b=%s children=[%s]"
 			% [from_id, to_id, a, b, ", ".join(child_names)]
 		)
 		return
 	var dist: float = a.global_position.distance_to(b.global_position)
-	_mp_log(
+	_shove_log_attacker(
+		from_id,
 		"[SHOVE] Main._apply dist=%.1f range=%.1f from=%d to=%d pos_a=%s pos_b=%s"
 		% [dist, SHOVE_RANGE, from_id, to_id, a.global_position, b.global_position]
 	)
 	if dist > SHOVE_RANGE:
-		_mp_log(
-			"[SHOVE] Main._apply skip: dist > range (проверь relay позиций на сервере / SHOVE_RANGE=%.0f)"
+		_shove_log_attacker(
+			from_id,
+			"[SHOVE] Main._apply skip: dist > range (relay/куклы на сервере; SHOVE_RANGE=%.0f)"
 			% SHOVE_RANGE
 		)
 		return
@@ -179,23 +260,32 @@ func _apply_shove_server(from_id: int, to_id: int, impulse_x: float) -> void:
 	var now := Time.get_ticks_msec()
 	var last: int = int(_shove_last_ms.get(key, -1_000_000_000))
 	if now - last < SHOVE_COOLDOWN_MS:
-		_mp_log("[SHOVE] Main._apply skip: cooldown key=%s dt=%dms" % [key, now - last])
+		_shove_log_attacker(from_id, "[SHOVE] Main._apply skip: cooldown key=%s dt=%dms" % [key, now - last])
 		return
 	_shove_last_ms[key] = now
-	impulse_x = clampf(impulse_x, -520.0, 520.0)
+	impulse_x = clampf(impulse_x, -SHOVE_IMPULSE_MAX, SHOVE_IMPULSE_MAX)
 	var target := _players.get_node_or_null(str(to_id))
 	if target and target.has_method("recv_shove_impulse"):
 		if multiplayer.is_server() and to_id == multiplayer.get_unique_id():
-			_mp_log("[SHOVE] Main._apply OK local recv_shove imp=%.1f to_id=%d" % [impulse_x, to_id])
+			_shove_log_attacker(
+				from_id,
+				"[SHOVE] Main._apply OK local recv_shove imp=%.1f to_id=%d" % [impulse_x, to_id]
+			)
 			target.recv_shove_impulse(impulse_x)
 		else:
-			_mp_log("[SHOVE] Main._apply OK rpc recv_shove imp=%.1f to_id=%d (peer)" % [impulse_x, to_id])
+			_shove_log_attacker(
+				from_id,
+				"[SHOVE] Main._apply OK rpc recv_shove imp=%.1f to_id=%d (peer)" % [impulse_x, to_id]
+			)
 			target.recv_shove_impulse.rpc_id(to_id, impulse_x)
 	else:
 		var tp := "null"
 		if target:
 			tp = str(target.get_path())
-		_mp_log("[SHOVE] Main._apply skip: no recv_shove on target path=%s" % tp)
+		_shove_log_attacker(
+			from_id,
+			"[SHOVE] Main._apply skip: no recv_shove on target path=%s" % tp
+		)
 
 
 func _server_spawn_bot_if_needed() -> void:
@@ -234,29 +324,34 @@ func _apply_shove_to_bot(from_id: int, impulse_x: float) -> void:
 	var a := _players.get_node_or_null(str(from_id)) as Node2D
 	var bot := _players.get_node_or_null("Bot") as Node2D
 	if a == null or bot == null:
-		_mp_log("[SHOVE] bot apply skip: missing a=%s bot=%s from_id=%d" % [a, bot, from_id])
+		_shove_log_attacker(
+			from_id,
+			"[SHOVE] bot apply skip: missing a=%s bot=%s from_id=%d" % [a, bot, from_id]
+		)
 		return
 	var dist: float = a.global_position.distance_to(bot.global_position)
-	_mp_log(
+	_shove_log_attacker(
+		from_id,
 		"[SHOVE] bot apply dist=%.1f range=%.0f from=%d pos_a=%s pos_bot=%s"
 		% [dist, SHOVE_RANGE, from_id, a.global_position, bot.global_position]
 	)
 	if dist > SHOVE_RANGE:
-		_mp_log("[SHOVE] bot apply skip: dist > range")
+		_shove_log_attacker(from_id, "[SHOVE] bot apply skip: dist > range")
 		return
 	var key := "%d>Bot" % from_id
 	var now := Time.get_ticks_msec()
 	var last: int = int(_shove_last_ms.get(key, -1_000_000_000))
 	if now - last < SHOVE_COOLDOWN_MS:
-		_mp_log("[SHOVE] bot apply skip: cooldown key=%s dt=%dms" % [key, now - last])
+		_shove_log_attacker(from_id, "[SHOVE] bot apply skip: cooldown key=%s dt=%dms" % [key, now - last])
 		return
 	_shove_last_ms[key] = now
-	impulse_x = clampf(impulse_x, -520.0, 520.0)
+	impulse_x = clampf(impulse_x, -SHOVE_IMPULSE_MAX, SHOVE_IMPULSE_MAX)
 	if multiplayer.multiplayer_peer == null:
 		if bot is CharacterBody2D and bot.has_method("apply_shove_impulse"):
 			bot.apply_shove_impulse(impulse_x)
 	else:
 		sync_bot_impulse.rpc(impulse_x)
+	_shove_log_attacker(from_id, "[SHOVE] bot apply OK impulse=%.1f" % impulse_x)
 
 
 @rpc("authority", "call_local", "reliable")
@@ -448,7 +543,7 @@ func _refresh_scoreboard() -> void:
 func _on_peer_disconnected(id: int) -> void:
 	if not multiplayer.is_server():
 		return
-	var addr := _enet_peer_addr_suffix(id)
+	var addr := _enet_disconnect_log_suffix(id)
 	_mp_log("[%s][server] peer_disconnected id=%d%s" % [_server_role_tag(), id, addr])
 	_svr_remove_peer_player(id)
 	_broadcast_scores()
@@ -484,7 +579,7 @@ func _spawn_player(peer_id: int, pos: Vector2, pname: String) -> void:
 
 func _spawn_point_for_peer(peer_id: int) -> Vector2:
 	var slot := absi(peer_id * 31 + 7) % GameState.MAX_PLAYERS
-	return Vector2(200.0 + float(slot) * 140.0, 400.0)
+	return Vector2(720.0 + float(slot) * 480.0, 400.0)
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -530,7 +625,7 @@ func _client_hello_impl(who: int, pname: String, wait_host_retry: int) -> void:
 	if bot_node:
 		sync_bot_spawn.rpc_id(who, bot_node.global_position)
 	var slot := clampi(_players.get_child_count(), 0, GameState.MAX_PLAYERS - 1)
-	var pos := Vector2(200.0 + float(slot) * 140.0, 400.0)
+	var pos := Vector2(720.0 + float(slot) * 480.0, 400.0)
 	_spawn_player(who, pos, pname)
 	## Уже подключённые клиенты должны получить куклу нового peer (хост не в get_peers()).
 	for peer_id in multiplayer.get_peers():

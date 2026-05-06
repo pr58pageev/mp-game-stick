@@ -2,28 +2,38 @@ extends CharacterBody2D
 
 const ATTACK_COOLDOWN := 0.55
 const MAX_HP := 100.0
-const ARENA_X_MIN := 40.0
-const ARENA_X_MAX := 1240.0
 const NET_SNAP_DIST_SQ := 65000.0
-## Логи толчка — оставляем включёнными по запросу.
+## Тестовая разработка: логи толчка держим включёнными (не выключать без явного решения «релиз»).
 const SHOVE_LOG := true
 const SHOVE_LOG_VERBOSE := false
 ## to_id для манекена Bot (см. Main.SHOVE_TARGET_BOT_ID).
 const SHOVE_TARGET_BOT_ID := 0
-## Proximity-толчок только вплотную: бег в цель не с дистанции «на весь экран».
-const SHOVE_PROX_MAX_DIST := 78.0
-## Стоишь рядом и почти не движешься — можно оттолкнуть.
-const SHOVE_PROX_SNUG_DIST := 62.0
-## Бежишь в противника — только если уже почти касаетесь (px между центрами).
-const SHOVE_PROX_RUN_CONTACT_DIST := 62.0
+## Proximity: «вплотную» по центрам (два хитбокса ~64px — касание ~64, было 62 и snug не срабатывал).
+const SHOVE_PROX_MAX_DIST := 84.0
+const SHOVE_PROX_SNUG_DIST := 76.0
+const SHOVE_PROX_RUN_CONTACT_DIST := 76.0
 const SHOVE_PROX_VEL_SNUG_MAX := 45.0
 const SHOVE_PROX_MOVE_VEL_MIN := 8.0
 const SHOVE_PROX_DY_MAX := 200.0
 ## Не слать request_player_shove каждый кадр (очередь reliable + relay).
 const SHOVE_NOTIFY_CLIENT_MIN_MS := 170
+## Замедление по X без ввода (px/с²); НЕ использовать `speed` как шаг move_toward — иначе толчок recv_shove съедается за 1 кадр.
+const GROUND_DECEL_X := 2200.0
+## Толчок игрока (PvP): было ~92/95 * 0.48/0.55 ≈ 44–52 стоя; поднято ближе к «как бота».
+const SHOVE_RECV_IMPULSE_MAX := 580.0
+const SHOVE_SLIDE_BASE := 128.0
+const SHOVE_SLIDE_RUN_SCALE_MIN := 0.45
+const SHOVE_SLIDE_RUN_SCALE_MAX := 1.42
+const SHOVE_SLIDE_STILL_MUL := 0.72
+const SHOVE_PROX_BASE := 132.0
+const SHOVE_PROX_RUN_SCALE_MIN := 0.5
+const SHOVE_PROX_RUN_SCALE_MAX := 1.42
+const SHOVE_PROX_STILL_MUL := 0.76
 
 @export var speed: float = 300.0
 @export var jump_velocity: float = -500.0
+## Сила второго прыжка в воздухе (доля от jump_velocity).
+@export_range(0.5, 1.0, 0.01) var air_jump_velocity_scale: float = 0.9
 
 var player_name: String = "":
 	set(v):
@@ -35,8 +45,14 @@ var hp: float = MAX_HP
 
 var _attack_cd: float = 0.0
 var _attack_tween: Tween
+## Осталось прыжков в воздухе после отрыва от пола (1 = разрешён двойной: пол + воздух).
+var _air_jumps_left: int = 1
 ## peer_id цели -> время последнего notify_player_shove (мс).
 var _shove_notify_last_ms: Dictionary = {}
+## Редкий лог «есть slide, но notify не ушёл» (без спама каждый кадр).
+var _shove_slide_no_notify_last_ms: int = -1_000_000_000
+## Редкий лог «кулдаун notify» по to_id (иначе засоряет Output).
+var _shove_cd_skip_log_last_ms: Dictionary = {}
 ## Целевая позиция с машины владельца (только для чужих персонажей).
 var _net_pos: Vector2
 
@@ -70,13 +86,19 @@ func _allow_shove_notify(to_id: int) -> bool:
 @rpc("any_peer", "call_remote", "reliable")
 func recv_shove_impulse(impulse_x: float) -> void:
 	print(
-		"[SHOVE] recv_shove impulse=%.1f unique=%d authority=%d is_auth=%s"
-		% [impulse_x, multiplayer.get_unique_id(), get_multiplayer_authority(), is_multiplayer_authority()]
+		"[SHOVE] recv_shove path=%s impulse=%.1f unique=%d authority=%d is_auth=%s"
+		% [
+			str(get_path()),
+			impulse_x,
+			multiplayer.get_unique_id(),
+			get_multiplayer_authority(),
+			is_multiplayer_authority(),
+		]
 	)
 	if not is_multiplayer_authority():
 		print("[SHOVE] recv_shove IGNORED (not authority)")
 		return
-	velocity.x += clampf(impulse_x, -520.0, 520.0)
+	velocity.x += clampf(impulse_x, -SHOVE_RECV_IMPULSE_MAX, SHOVE_RECV_IMPULSE_MAX)
 	print("[SHOVE] recv_shove APPLIED velocity.x=%.1f" % velocity.x)
 
 
@@ -88,20 +110,27 @@ func _physics_process(delta: float) -> void:
 	if _attack_cd > 0.0:
 		_attack_cd -= delta
 
+	if is_on_floor():
+		_air_jumps_left = 1
+
 	if not is_on_floor():
 		velocity += get_gravity() * delta
 
-	if Input.is_action_just_pressed("jump") and is_on_floor():
-		velocity.y = jump_velocity
+	if Input.is_action_just_pressed("jump"):
+		if is_on_floor():
+			velocity.y = jump_velocity
+		elif _air_jumps_left > 0:
+			velocity.y = jump_velocity * air_jump_velocity_scale
+			_air_jumps_left -= 1
 
 	var direction := Input.get_axis("move_left", "move_right")
 	if direction != 0.0:
 		velocity.x = direction * speed
 	else:
-		velocity.x = move_toward(velocity.x, 0.0, speed)
+		velocity.x = move_toward(velocity.x, 0.0, GROUND_DECEL_X * delta)
 
 	move_and_slide()
-	global_position.x = clampf(global_position.x, ARENA_X_MIN, ARENA_X_MAX)
+	global_position.x = clampf(global_position.x, GameState.ARENA_X_MIN, GameState.ARENA_X_MAX)
 
 	if multiplayer.multiplayer_peer == null or is_multiplayer_authority():
 		_try_report_player_shove()
@@ -146,19 +175,44 @@ func _try_shove_from_slide_collisions() -> bool:
 			else other.get_multiplayer_authority()
 		)
 		if to_id != SHOVE_TARGET_BOT_ID and to_id == get_multiplayer_authority():
+			if SHOVE_LOG:
+				print("[SHOVE] slide skip: other is self (auth=%d)" % get_multiplayer_authority())
 			continue
+		## Частый кейс: стоите в линию по X — |dx| малый, раньше толчок с slide никогда не уходил.
 		var dx := global_position.x - other.global_position.x
 		if absf(dx) < 1.5:
-			continue
-		var impulse := -signf(dx) * 92.0
+			var nx := c.get_normal().x
+			if absf(nx) > 0.1:
+				dx = -nx * 40.0
+			elif absf(velocity.x) > 6.0:
+				dx = velocity.x
+			else:
+				if SHOVE_LOG:
+					print(
+						"[SHOVE] slide skip: |dx|=%.3f stacked, normal.x=%.3f vel.x=%.1f to_id=%s"
+						% [absf(global_position.x - other.global_position.x), nx, velocity.x, str(to_id)]
+					)
+				continue
+		var impulse := -signf(dx) * SHOVE_SLIDE_BASE
 		if absf(velocity.x) > 18.0:
-			impulse *= clampf(absf(velocity.x) / speed, 0.4, 1.25)
+			impulse *= clampf(absf(velocity.x) / speed, SHOVE_SLIDE_RUN_SCALE_MIN, SHOVE_SLIDE_RUN_SCALE_MAX)
 		else:
-			impulse *= 0.48
+			impulse *= SHOVE_SLIDE_STILL_MUL
 		var main := get_tree().get_first_node_in_group("arena_main")
 		if main == null or not main.has_method("notify_player_shove"):
+			if SHOVE_LOG:
+				print("[SHOVE] slide skip: no Main.notify (main=%s)" % main)
 			break
 		if not _allow_shove_notify(to_id):
+			if SHOVE_LOG:
+				var tlog := Time.get_ticks_msec()
+				var prev_cd := int(_shove_cd_skip_log_last_ms.get(to_id, -1_000_000_000))
+				if tlog - prev_cd > 400:
+					_shove_cd_skip_log_last_ms[to_id] = tlog
+					print(
+						"[SHOVE] slide skip: client notify cooldown to_id=%d (~%d ms)"
+						% [to_id, SHOVE_NOTIFY_CLIENT_MIN_MS]
+					)
 			continue
 		if SHOVE_LOG:
 			print(
@@ -167,6 +221,13 @@ func _try_shove_from_slide_collisions() -> bool:
 			)
 		main.notify_player_shove(get_multiplayer_authority(), to_id, impulse)
 		return true
+	var now_ms := Time.get_ticks_msec()
+	if n > 0 and SHOVE_LOG and now_ms - _shove_slide_no_notify_last_ms > 500:
+		_shove_slide_no_notify_last_ms = now_ms
+		print(
+			"[SHOVE] slide: %d collision(s), notify not sent (parent/self/stacked+calm/cooldown/no Main)"
+			% n
+		)
 	return false
 
 
@@ -195,19 +256,32 @@ func _try_shove_from_proximity() -> void:
 			continue
 		var dx := global_position.x - other.global_position.x
 		if absf(dx) < 1.0:
-			if SHOVE_LOG_VERBOSE:
-				print("[SHOVE] prox skip to=%d dx tiny %.2f" % [to_id, dx])
-			continue
+			if absf(velocity.x) > 6.0:
+				dx = velocity.x
+			else:
+				var gapx := other.global_position.x - global_position.x
+				if absf(gapx) > 0.0001:
+					dx = gapx
+				else:
+					dx = 1.2 if get_instance_id() > other.get_instance_id() else -1.2
 		var dy := absf(global_position.y - other.global_position.y)
 		if dy > SHOVE_PROX_DY_MAX:
 			if SHOVE_LOG_VERBOSE:
 				print("[SHOVE] prox skip to=%d dy=%.1f" % [to_id, dy])
 			continue
 		var to_other_x := signf(other.global_position.x - global_position.x)
+		if to_other_x == 0.0:
+			to_other_x = signf(dx) if absf(dx) > 0.0001 else 1.0
+		var input_x := Input.get_axis("move_left", "move_right")
+		## В упор скорость часто 0 (столкновение съело), но ось «в противника» есть.
+		var walk_into := absf(input_x) > 0.12 and signf(input_x) == to_other_x
 		var moving_toward := (
-			absf(velocity.x) > SHOVE_PROX_MOVE_VEL_MIN
-			and signf(velocity.x) == to_other_x
-			and dist < SHOVE_PROX_RUN_CONTACT_DIST
+			(
+				absf(velocity.x) > SHOVE_PROX_MOVE_VEL_MIN
+				and signf(velocity.x) == to_other_x
+				and dist < SHOVE_PROX_RUN_CONTACT_DIST
+			)
+			or (walk_into and dist < SHOVE_PROX_RUN_CONTACT_DIST + 10.0)
 		)
 		var snug := dist < SHOVE_PROX_SNUG_DIST and absf(velocity.x) < SHOVE_PROX_VEL_SNUG_MAX
 		if not (moving_toward or snug):
@@ -217,18 +291,24 @@ func _try_shove_from_proximity() -> void:
 					% [to_id, dist, velocity.x, moving_toward, snug]
 				)
 			continue
-		var impulse := -signf(dx) * 95.0
+		var impulse := -signf(dx) * SHOVE_PROX_BASE
 		if absf(velocity.x) > 18.0:
-			impulse *= clampf(absf(velocity.x) / speed, 0.45, 1.25)
+			impulse *= clampf(absf(velocity.x) / speed, SHOVE_PROX_RUN_SCALE_MIN, SHOVE_PROX_RUN_SCALE_MAX)
 		else:
-			impulse *= 0.55
+			impulse *= SHOVE_PROX_STILL_MUL
 		var main := get_tree().get_first_node_in_group("arena_main")
 		if main and main.has_method("notify_player_shove"):
 			if not _allow_shove_notify(to_id):
+				if SHOVE_LOG:
+					var tlog2 := Time.get_ticks_msec()
+					var prev2 := int(_shove_cd_skip_log_last_ms.get(to_id, -1_000_000_000))
+					if tlog2 - prev2 > 400:
+						_shove_cd_skip_log_last_ms[to_id] = tlog2
+						print("[SHOVE] proximity skip: client notify cooldown to_id=%d" % to_id)
 				break
 			print(
-				"[SHOVE] proximity -> notify from=%d to=%d imp=%.1f dist=%.1f vel.x=%.1f"
-				% [pid, to_id, impulse, dist, velocity.x]
+				"[SHOVE] proximity -> notify from=%d to=%d imp=%.1f dist=%.1f vel.x=%.1f input=%.2f walk_into=%s snug=%s"
+				% [pid, to_id, impulse, dist, velocity.x, input_x, walk_into, snug]
 			)
 			main.notify_player_shove(pid, to_id, impulse)
 		elif SHOVE_LOG:
@@ -247,7 +327,7 @@ func _run_puppet_physics(delta: float) -> void:
 	desired_vel.y = clampf(desired_vel.y, jump_velocity * 1.2, 1600.0)
 	velocity = desired_vel
 	move_and_slide()
-	global_position.x = clampf(global_position.x, ARENA_X_MIN, ARENA_X_MAX)
+	global_position.x = clampf(global_position.x, GameState.ARENA_X_MIN, GameState.ARENA_X_MAX)
 
 
 func _send_attack_request() -> void:
@@ -285,5 +365,6 @@ func force_respawn(pos: Vector2, full_hp: float) -> void:
 	global_position = pos
 	_net_pos = pos
 	velocity = Vector2.ZERO
+	_air_jumps_left = 1
 	hp = clampf(full_hp, 0.0, MAX_HP)
 	_refresh_hp_bar()
