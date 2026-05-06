@@ -458,6 +458,23 @@ func client_hello(pname: String) -> void:
 	if not multiplayer.is_server():
 		return
 	var who := multiplayer.get_remote_sender_id()
+	_client_hello_impl(who, pname, 0)
+
+
+func _client_hello_impl(who: int, pname: String, wait_host_retry: int) -> void:
+	if not multiplayer.is_server():
+		return
+	## Listen-server: hello может прийти до того, как в дереве появится кукла хоста "1".
+	if not GameState.is_dedicated_server and not _players.has_node("1"):
+		if wait_host_retry < 40:
+			_mp_log(
+				"[%s][server] client_hello отложен who=%d retry=%d (ещё нет узла \"1\")"
+				% [_server_role_tag(), who, wait_host_retry]
+			)
+			call_deferred("_client_hello_impl", who, pname, wait_host_retry + 1)
+		else:
+			push_error("Main: client_hello — узел хоста \"1\" так и не появился")
+		return
 	_mp_log(
 		"[%s][server] client_hello (в игре) id=%d name=\"%s\"%s players_children=%d"
 		% [
@@ -472,6 +489,8 @@ func client_hello(pname: String) -> void:
 		if c.is_in_group("pushable_dummy") or str(c.name) == "Bot":
 			continue
 		var pid: int = int(str(c.name))
+		if pid == who:
+			continue
 		sync_spawn.rpc_id(who, pid, c.global_position, c.player_name)
 	var bot_node := _players.get_node_or_null("Bot")
 	if bot_node:
@@ -479,6 +498,11 @@ func client_hello(pname: String) -> void:
 	var slot := clampi(_players.get_child_count(), 0, GameState.MAX_PLAYERS - 1)
 	var pos := Vector2(200.0 + float(slot) * 140.0, 400.0)
 	_spawn_player(who, pos, pname)
+	## Уже подключённые клиенты должны получить куклу нового peer (хост не в get_peers()).
+	for peer_id in multiplayer.get_peers():
+		if peer_id == who:
+			continue
+		sync_spawn.rpc_id(peer_id, who, pos, pname)
 	sync_spawn.rpc_id(who, who, pos, pname)
 	if not _scores.is_empty():
 		net_scores_updated.rpc_id(who, _scores.duplicate())
