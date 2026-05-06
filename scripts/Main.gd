@@ -91,11 +91,27 @@ func player_request_attack(attacker_id: int) -> void:
 ## Позиция: peer_id и Vector2 отдельными аргументами (в Dictionary int > 2^24 ломается при сериализации RPC).
 @rpc("any_peer", "call_remote", "unreliable_ordered")
 func relay_player_pos(peer_id: int, pos: Vector2) -> void:
-	if peer_id < 0 or multiplayer.get_remote_sender_id() != peer_id:
+	var sender := multiplayer.get_remote_sender_id()
+	if peer_id < 0:
+		if multiplayer.is_server():
+			_mp_log("[RELAY] reject peer_id<0 peer_id=%d sender=%d pos=%s" % [peer_id, sender, pos])
+		return
+	if sender != peer_id:
+		if multiplayer.is_server():
+			_mp_log(
+				"[RELAY] reject sender!=peer_id sender=%d peer_id=%d"
+				% [sender, peer_id]
+			)
 		return
 	var p := _players.get_node_or_null(str(peer_id))
-	if p and p.has_method("apply_network_motion"):
-		p.apply_network_motion(pos)
+	if p == null or not p.has_method("apply_network_motion"):
+		if multiplayer.is_server():
+			_mp_log(
+				"[RELAY] reject no node peer_id=%d sender=%d has_node=%s"
+				% [peer_id, sender, _players.has_node(str(peer_id))]
+			)
+		return
+	p.apply_network_motion(pos)
 
 
 func notify_player_shove(from_id: int, to_id: int, impulse_x: float) -> void:
@@ -116,19 +132,22 @@ func notify_player_shove(from_id: int, to_id: int, impulse_x: float) -> void:
 @rpc("any_peer", "call_remote", "reliable")
 func request_player_shove(from_id: int, to_id: int, impulse_x: float) -> void:
 	if not multiplayer.is_server():
-		print("[SHOVE] Main.request_player_shove drop: not server")
+		_mp_log("[SHOVE] Main.request_player_shove drop: not server")
 		return
 	var sender := multiplayer.get_remote_sender_id()
 	if sender != from_id:
-		print("[SHOVE] Main.request reject sender=%d from_id=%d" % [sender, from_id])
+		_mp_log("[SHOVE] Main.request reject sender=%d from_id=%d imp=%.1f" % [sender, from_id, impulse_x])
 		return
-	print("[SHOVE] Main.request ok -> _apply from=%d to=%d" % [from_id, to_id])
+	_mp_log(
+		"[SHOVE] Main.request ok -> _apply from=%d to=%d imp=%.1f"
+		% [from_id, to_id, impulse_x]
+	)
 	_apply_shove_server(from_id, to_id, impulse_x)
 
 
 func _apply_shove_server(from_id: int, to_id: int, impulse_x: float) -> void:
 	if from_id == to_id:
-		print("[SHOVE] Main._apply skip: from==to")
+		_mp_log("[SHOVE] Main._apply skip: from==to id=%d" % from_id)
 		return
 	if to_id == SHOVE_TARGET_BOT_ID:
 		_apply_shove_to_bot(from_id, impulse_x)
@@ -136,34 +155,46 @@ func _apply_shove_server(from_id: int, to_id: int, impulse_x: float) -> void:
 	var a := _players.get_node_or_null(str(from_id)) as Node2D
 	var b := _players.get_node_or_null(str(to_id)) as Node2D
 	if a == null or b == null:
-		print("[SHOVE] Main._apply skip: missing node a=%s b=%s" % [a, b])
+		var child_names := PackedStringArray()
+		for ch in _players.get_children():
+			child_names.append(str(ch.name))
+		_mp_log(
+			"[SHOVE] Main._apply skip: missing node from_id=%d to_id=%d a=%s b=%s children=[%s]"
+			% [from_id, to_id, a, b, ", ".join(child_names)]
+		)
 		return
 	var dist: float = a.global_position.distance_to(b.global_position)
-	print("[SHOVE] Main._apply dist=%.1f range=%.1f from=%d to=%d" % [dist, SHOVE_RANGE, from_id, to_id])
+	_mp_log(
+		"[SHOVE] Main._apply dist=%.1f range=%.1f from=%d to=%d pos_a=%s pos_b=%s"
+		% [dist, SHOVE_RANGE, from_id, to_id, a.global_position, b.global_position]
+	)
 	if dist > SHOVE_RANGE:
-		print("[SHOVE] Main._apply skip: dist > range (сервер видит кукол дальше — увеличь SHOVE_RANGE если мимо)")
+		_mp_log(
+			"[SHOVE] Main._apply skip: dist > range (проверь relay позиций на сервере / SHOVE_RANGE=%.0f)"
+			% SHOVE_RANGE
+		)
 		return
 	var key := "%d>%d" % [from_id, to_id]
 	var now := Time.get_ticks_msec()
 	var last: int = int(_shove_last_ms.get(key, -1_000_000_000))
 	if now - last < SHOVE_COOLDOWN_MS:
-		print("[SHOVE] Main._apply skip: cooldown key=%s dt=%dms" % [key, now - last])
+		_mp_log("[SHOVE] Main._apply skip: cooldown key=%s dt=%dms" % [key, now - last])
 		return
 	_shove_last_ms[key] = now
 	impulse_x = clampf(impulse_x, -520.0, 520.0)
 	var target := _players.get_node_or_null(str(to_id))
 	if target and target.has_method("recv_shove_impulse"):
-		print("[SHOVE] Main._apply OK -> recv_shove imp=%.1f to_id=%d" % [impulse_x, to_id])
 		if multiplayer.is_server() and to_id == multiplayer.get_unique_id():
-			print("[SHOVE] Main._apply local call (host shoves self / rpc_id self)")
+			_mp_log("[SHOVE] Main._apply OK local recv_shove imp=%.1f to_id=%d" % [impulse_x, to_id])
 			target.recv_shove_impulse(impulse_x)
 		else:
+			_mp_log("[SHOVE] Main._apply OK rpc recv_shove imp=%.1f to_id=%d (peer)" % [impulse_x, to_id])
 			target.recv_shove_impulse.rpc_id(to_id, impulse_x)
 	else:
 		var tp := "null"
 		if target:
 			tp = str(target.get_path())
-		print("[SHOVE] Main._apply skip: no recv_shove on target path=%s" % tp)
+		_mp_log("[SHOVE] Main._apply skip: no recv_shove on target path=%s" % tp)
 
 
 func _server_spawn_bot_if_needed() -> void:
@@ -202,17 +233,21 @@ func _apply_shove_to_bot(from_id: int, impulse_x: float) -> void:
 	var a := _players.get_node_or_null(str(from_id)) as Node2D
 	var bot := _players.get_node_or_null("Bot") as Node2D
 	if a == null or bot == null:
-		print("[SHOVE] bot apply skip: missing a=%s bot=%s" % [a, bot])
+		_mp_log("[SHOVE] bot apply skip: missing a=%s bot=%s from_id=%d" % [a, bot, from_id])
 		return
 	var dist: float = a.global_position.distance_to(bot.global_position)
-	print("[SHOVE] bot apply dist=%.1f from=%d" % [dist, from_id])
+	_mp_log(
+		"[SHOVE] bot apply dist=%.1f range=%.0f from=%d pos_a=%s pos_bot=%s"
+		% [dist, SHOVE_RANGE, from_id, a.global_position, bot.global_position]
+	)
 	if dist > SHOVE_RANGE:
-		print("[SHOVE] bot apply skip: dist > range")
+		_mp_log("[SHOVE] bot apply skip: dist > range")
 		return
 	var key := "%d>Bot" % from_id
 	var now := Time.get_ticks_msec()
 	var last: int = int(_shove_last_ms.get(key, -1_000_000_000))
 	if now - last < SHOVE_COOLDOWN_MS:
+		_mp_log("[SHOVE] bot apply skip: cooldown key=%s dt=%dms" % [key, now - last])
 		return
 	_shove_last_ms[key] = now
 	impulse_x = clampf(impulse_x, -520.0, 520.0)
