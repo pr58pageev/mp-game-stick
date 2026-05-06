@@ -98,7 +98,7 @@ func _physics_process(delta: float) -> void:
 	if multiplayer.multiplayer_peer != null and is_multiplayer_authority():
 		var main := get_tree().get_first_node_in_group("arena_main")
 		if main and main.has_method("relay_player_pos"):
-			main.relay_player_pos.rpc({"i": get_multiplayer_authority(), "p": global_position})
+			main.relay_player_pos.rpc(get_multiplayer_authority(), global_position)
 
 
 func _try_report_player_shove() -> void:

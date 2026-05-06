@@ -88,11 +88,9 @@ func player_request_attack(attacker_id: int) -> void:
 		server_request_attack.rpc_id(1, attacker_id)
 
 
-## Позиция через Main (один аргумент — меньше рассинхрона checksum с разными билдами).
+## Позиция: peer_id и Vector2 отдельными аргументами (в Dictionary int > 2^24 ломается при сериализации RPC).
 @rpc("any_peer", "call_remote", "unreliable_ordered")
-func relay_player_pos(payload: Dictionary) -> void:
-	var peer_id := int(payload.get("i", -1))
-	var pos: Vector2 = payload.get("p", Vector2.ZERO)
+func relay_player_pos(peer_id: int, pos: Vector2) -> void:
 	if peer_id < 0 or multiplayer.get_remote_sender_id() != peer_id:
 		return
 	var p := _players.get_node_or_null(str(peer_id))
