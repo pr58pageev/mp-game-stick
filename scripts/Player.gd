@@ -19,6 +19,8 @@ const SHOVE_PROX_RUN_CONTACT_DIST := 62.0
 const SHOVE_PROX_VEL_SNUG_MAX := 45.0
 const SHOVE_PROX_MOVE_VEL_MIN := 8.0
 const SHOVE_PROX_DY_MAX := 200.0
+## Не слать request_player_shove каждый кадр (очередь reliable + relay).
+const SHOVE_NOTIFY_CLIENT_MIN_MS := 170
 
 @export var speed: float = 300.0
 @export var jump_velocity: float = -500.0
@@ -33,6 +35,8 @@ var hp: float = MAX_HP
 
 var _attack_cd: float = 0.0
 var _attack_tween: Tween
+## peer_id цели -> время последнего notify_player_shove (мс).
+var _shove_notify_last_ms: Dictionary = {}
 ## Целевая позиция с машины владельца (только для чужих персонажей).
 var _net_pos: Vector2
 
@@ -50,6 +54,17 @@ func _ready() -> void:
 
 func apply_network_motion(pos: Vector2) -> void:
 	_net_pos = pos
+
+
+func _allow_shove_notify(to_id: int) -> bool:
+	if multiplayer.multiplayer_peer == null:
+		return true
+	var now := Time.get_ticks_msec()
+	var prev: int = int(_shove_notify_last_ms.get(to_id, -1_000_000_000))
+	if now - prev < SHOVE_NOTIFY_CLIENT_MIN_MS:
+		return false
+	_shove_notify_last_ms[to_id] = now
+	return true
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -143,6 +158,8 @@ func _try_shove_from_slide_collisions() -> bool:
 		var main := get_tree().get_first_node_in_group("arena_main")
 		if main == null or not main.has_method("notify_player_shove"):
 			break
+		if not _allow_shove_notify(to_id):
+			continue
 		if SHOVE_LOG:
 			print(
 				"[SHOVE] slide -> notify from=%d to=%d impulse=%.1f"
@@ -207,6 +224,8 @@ func _try_shove_from_proximity() -> void:
 			impulse *= 0.55
 		var main := get_tree().get_first_node_in_group("arena_main")
 		if main and main.has_method("notify_player_shove"):
+			if not _allow_shove_notify(to_id):
+				break
 			print(
 				"[SHOVE] proximity -> notify from=%d to=%d imp=%.1f dist=%.1f vel.x=%.1f"
 				% [pid, to_id, impulse, dist, velocity.x]

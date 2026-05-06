@@ -6,7 +6,7 @@ const ATTACK_RADIUS := 100.0
 const ATTACK_DAMAGE := 35.0
 const PLAYER_MAX_HP := 100.0
 const SHOVE_RANGE := 380.0
-const SHOVE_COOLDOWN_MS := 100
+const SHOVE_COOLDOWN_MS := 160
 ## to_id==0 в notify_player_shove = толкать манекена «Bot».
 const SHOVE_TARGET_BOT_ID := 0
 const BOT_SPAWN_POS := Vector2(900, 400)
@@ -89,7 +89,8 @@ func player_request_attack(attacker_id: int) -> void:
 
 
 ## Позиция: peer_id и Vector2 отдельными аргументами (в Dictionary int > 2^24 ломается при сериализации RPC).
-@rpc("any_peer", "call_remote", "unreliable_ordered")
+## unreliable (без ordered): ordered при потерях может «заморозить» позицию куклы на сервере.
+@rpc("any_peer", "call_remote", "unreliable")
 func relay_player_pos(peer_id: int, pos: Vector2) -> void:
 	var sender := multiplayer.get_remote_sender_id()
 	if peer_id < 0:
