@@ -83,4 +83,4 @@ pointing/emulate_touch_from_mouse=true
 textures/canvas_textures/default_texture_filter=0
 rendering_device/driver.windows="d3d12"
 renderer/rendering_method="mobile"
-"##ETC2/ASTCÐ¿ÑÐ¸Ð¸Ð¼Ð¿Ð¾ÑÑÐµÑÐ°ÑÑÐ¾Ð¿Ð¾ÑÑÐ¸ÑÐ°Ð»ÑÑÑÑÐ¿Ð¸ÐºÑÐµÐ»Ñ-Ð°ÑÑÐ°(ÑÑÑÐ½ÑÐ¹ÑÐ¾Ð½ÑÑÐ°Ð¹Ð»Ð¾Ð²).ÐÐ»Ñ2DÐ½Ð°Ð´ÑÐ¶Ð½ÐµÐµÐ²ÑÐºÐ»ÑÑÐ¸ÑÑ.textures/vram_compression/import_etc2_astc"=false
+textures/vram_compression/import_etc2_astc=true
