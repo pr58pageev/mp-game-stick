@@ -79,12 +79,79 @@ alignment = 1
 layout_mode = 2
 text = "Тестовый сервер (178.57.222.23)"
 
+[node name="NewWorldRow" type="HBoxContainer" parent="VBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="NewWorldButton" type="Button" parent="VBox/NewWorldRow"]
+layout_mode = 2
+text = "Новый мир (сбросить сохранённую карту)"
+
 [node name="Status" type="Label" parent="VBox" unique_id=1957259549]
 layout_mode = 2
 theme_override_font_sizes/font_size = 16
 horizontal_alignment = 1
 autowrap_mode = 2
 
+[node name="DebugConsole" type="CanvasLayer" parent="."]
+layer = 20
+
+[node name="Root" type="Control" parent="DebugConsole"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="ConsolePanel" type="PanelContainer" parent="DebugConsole/Root"]
+visible = false
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 0.22
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 8.0
+offset_right = -8.0
+offset_bottom = -56.0
+
+[node name="VBox" type="VBoxContainer" parent="DebugConsole/Root/ConsolePanel"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="Hint" type="Label" parent="DebugConsole/Root/ConsolePanel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 13
+text = "Лог подключения (UDP). Если нет peer_connected на VPS — пакеты не дошли (сеть / IP / порт)."
+autowrap_mode = 2
+
+[node name="ConsoleLog" type="TextEdit" parent="DebugConsole/Root/ConsolePanel/VBox"]
+custom_minimum_size = Vector2(0, 220)
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_font_sizes/font_size = 13
+editable = false
+wrap_mode = 1
+context_menu_enabled = true
+shortcut_keys_enabled = false
+
+[node name="ConsoleToggleButton" type="Button" parent="DebugConsole/Root"]
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = -48.0
+offset_right = -8.0
+offset_bottom = -8.0
+theme_override_font_sizes/font_size = 16
+text = "Показать консоль"
+
 [connection signal="pressed" from="VBox/Buttons/HostButton" to="." method="_on_host_pressed"]
 [connection signal="pressed" from="VBox/Buttons/JoinButton" to="." method="_on_join_pressed"]
 [connection signal="pressed" from="VBox/TestServerRow/JoinTestServerButton" to="." method="_on_join_test_server_pressed"]
+[connection signal="pressed" from="VBox/NewWorldRow/NewWorldButton" to="." method="_on_new_world_pressed"]
+[connection signal="pressed" from="DebugConsole/Root/ConsoleToggleButton" to="." method="_on_console_toggle_pressed"]

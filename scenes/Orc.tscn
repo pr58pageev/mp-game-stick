@@ -1,0 +1,35 @@
+[gd_scene format=3 uid="uid://b1orc0000001"]
+
+[ext_resource type="Script" path="res://scripts/Orc.gd" id="1_script"]
+[ext_resource type="Texture2D" uid="uid://dm6illalotutj" path="res://assets/Characters(100x100)/Orc/Orc/Orc.png" id="2_tex"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_orc"]
+radius = 20.0
+
+[node name="Orc" type="CharacterBody2D"]
+collision_layer = 8
+collision_mask = 7
+motion_mode = 1
+script = ExtResource("1_script")
+
+[node name="HPBar" type="ProgressBar" parent="."]
+custom_minimum_size = Vector2(56, 4)
+offset_left = -28.0
+offset_top = -108.0
+offset_right = 28.0
+offset_bottom = -104.0
+max_value = 50.0
+value = 50.0
+show_percentage = false
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+position = Vector2(0, -70)
+texture = ExtResource("2_tex")
+hframes = 8
+vframes = 6
+centered = true
+frame = 8
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2(0, -20)
+shape = SubResource("CircleShape2D_orc")

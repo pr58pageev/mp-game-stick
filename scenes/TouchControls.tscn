@@ -3,6 +3,7 @@
 [ext_resource type="Script" path="res://scripts/TouchControls.gd" id="1_script"]
 
 [node name="TouchControls" type="CanvasLayer"]
+layer = 4
 script = ExtResource("1_script")
 
 [node name="Root" type="Control" parent="."]
@@ -12,94 +13,75 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 mouse_filter = 2
 
-[node name="LeftButton" type="Panel" parent="Root"]
+[node name="Joystick" type="Control" parent="Root"]
 layout_mode = 1
+anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_left = 40.0
-offset_top = -180.0
-offset_right = 180.0
-offset_bottom = -40.0
+offset_left = 24.0
+offset_top = -204.0
+offset_right = 204.0
+offset_bottom = -24.0
 mouse_filter = 2
-modulate = Color(1, 1, 1, 0.6)
 
-[node name="LeftLabel" type="Label" parent="Root/LeftButton"]
+[node name="ReviveButton" type="Button" parent="Root"]
+visible = false
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-mouse_filter = 2
-theme_override_font_sizes/font_size = 64
-text = "<"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="RightButton" type="Panel" parent="Root"]
-layout_mode = 1
-anchor_top = 1.0
-anchor_bottom = 1.0
-offset_left = 200.0
-offset_top = -180.0
-offset_right = 340.0
-offset_bottom = -40.0
-mouse_filter = 2
-modulate = Color(1, 1, 1, 0.6)
-
-[node name="RightLabel" type="Label" parent="Root/RightButton"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-mouse_filter = 2
-theme_override_font_sizes/font_size = 64
-text = ">"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="AttackButton" type="Panel" parent="Root"]
-layout_mode = 1
+anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -360.0
-offset_top = -180.0
-offset_right = -200.0
-offset_bottom = -40.0
-mouse_filter = 2
-modulate = Color(1, 0.85, 0.75, 0.65)
+offset_left = -120.0
+offset_top = -320.0
+offset_right = -16.0
+offset_bottom = -260.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_font_sizes/font_size = 15
+text = "Оживить"
 
-[node name="AttackLabel" type="Label" parent="Root/AttackButton"]
+[node name="AttackButton" type="Button" parent="Root"]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-mouse_filter = 2
-theme_override_font_sizes/font_size = 40
-text = "Удар"
-horizontal_alignment = 1
-vertical_alignment = 1
-
-[node name="JumpButton" type="Panel" parent="Root"]
-layout_mode = 1
+anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -180.0
-offset_top = -180.0
-offset_right = -40.0
+offset_left = -184.0
+offset_top = -208.0
+offset_right = -16.0
 offset_bottom = -40.0
-mouse_filter = 2
-modulate = Color(1, 1, 1, 0.6)
+grow_horizontal = 0
+grow_vertical = 0
+text = ""
 
-[node name="JumpLabel" type="Label" parent="Root/JumpButton"]
+[node name="JoystickBase" type="Panel" parent="Root/Joystick"]
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -80.0
+offset_top = -80.0
+offset_right = 80.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 0
+
+[node name="Knob" type="Panel" parent="Root/Joystick/JoystickBase"]
+layout_mode = 1
+anchors_preset = 8
+anchor_left = 0.5
+anchor_top = 0.5
+anchor_right = 0.5
+anchor_bottom = 0.5
+offset_left = -22.0
+offset_top = -22.0
+offset_right = 22.0
+offset_bottom = 22.0
+grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
-theme_override_font_sizes/font_size = 64
-text = "^"
-horizontal_alignment = 1
-vertical_alignment = 1

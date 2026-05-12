@@ -1,136 +1,63 @@
-[gd_scene load_steps=5 format=3 uid="uid://b1main000001"]
+[gd_scene format=3 uid="uid://b1main000001"]
 
-[ext_resource type="Script" path="res://scripts/Main.gd" id="1_main"]
+[ext_resource type="Script" uid="uid://dq4g0nayljy17" path="res://scripts/Main.gd" id="1_main"]
 [ext_resource type="PackedScene" uid="uid://b1touch000001" path="res://scenes/TouchControls.tscn" id="2_touch"]
+[ext_resource type="Script" path="res://scripts/minimap.gd" id="3_minimap"]
 
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_ground"]
-size = Vector2(3840, 80)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_block"]
-size = Vector2(108, 132)
-
-[sub_resource type="RectangleShape2D" id="RectangleShape2D_block_tall"]
-size = Vector2(96, 168)
-
-[node name="Main" type="Node2D"]
+[node name="Main" type="Node2D" unique_id=165194342]
 script = ExtResource("1_main")
 
-[node name="Background" type="ColorRect" parent="."]
-offset_left = -500.0
-offset_top = -500.0
-offset_right = 4500.0
-offset_bottom = 1200.0
-color = Color(0.11, 0.14, 0.2, 1)
+[node name="Background" type="ColorRect" parent="." unique_id=1770082358]
+offset_left = -400.0
+offset_top = -400.0
+offset_right = 2400.0
+offset_bottom = 1600.0
+color = Color(0.07, 0.09, 0.12, 1)
 
-[node name="Ground" type="StaticBody2D" parent="."]
-collision_layer = 1
-position = Vector2(2000, 640)
+[node name="World" type="Node2D" parent="." unique_id=1714004429]
+z_index = 0
 
-[node name="GroundVisual" type="Polygon2D" parent="Ground"]
-color = Color(0.28, 0.48, 0.3, 1)
-polygon = PackedVector2Array(-1920, -40, 1920, -40, 1920, 40, -1920, 40)
+[node name="DepthSort" type="Node2D" parent="." unique_id=584480779]
+y_sort_enabled = true
+z_index = 8
 
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Ground"]
-shape = SubResource("RectangleShape2D_ground")
+[node name="Orcs" type="Node2D" parent="DepthSort"]
+z_index = 4
 
-[node name="Obstacles" type="Node2D" parent="."]
-
-[node name="Block01" type="StaticBody2D" parent="Obstacles"]
-position = Vector2(1050, 534)
-collision_layer = 1
-
-[node name="Visual" type="ColorRect" parent="Obstacles/Block01"]
-offset_left = -54.0
-offset_top = -66.0
-offset_right = 54.0
-offset_bottom = 66.0
-color = Color(0.42, 0.36, 0.3, 1)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstacles/Block01"]
-shape = SubResource("RectangleShape2D_block")
-
-[node name="Block02" type="StaticBody2D" parent="Obstacles"]
-position = Vector2(1680, 534)
-collision_layer = 1
-
-[node name="Visual" type="ColorRect" parent="Obstacles/Block02"]
-offset_left = -54.0
-offset_top = -66.0
-offset_right = 54.0
-offset_bottom = 66.0
-color = Color(0.38, 0.34, 0.28, 1)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstacles/Block02"]
-shape = SubResource("RectangleShape2D_block")
-
-[node name="Block03" type="StaticBody2D" parent="Obstacles"]
-position = Vector2(2320, 516)
-collision_layer = 1
-
-[node name="Visual" type="ColorRect" parent="Obstacles/Block03"]
-offset_left = -48.0
-offset_top = -84.0
-offset_right = 48.0
-offset_bottom = 84.0
-color = Color(0.35, 0.32, 0.4, 1)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstacles/Block03"]
-shape = SubResource("RectangleShape2D_block_tall")
-
-[node name="Block04" type="StaticBody2D" parent="Obstacles"]
-position = Vector2(2980, 534)
-collision_layer = 1
-
-[node name="Visual" type="ColorRect" parent="Obstacles/Block04"]
-offset_left = -54.0
-offset_top = -66.0
-offset_right = 54.0
-offset_bottom = 66.0
-color = Color(0.4, 0.36, 0.3, 1)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstacles/Block04"]
-shape = SubResource("RectangleShape2D_block")
-
-[node name="Block05" type="StaticBody2D" parent="Obstacles"]
-position = Vector2(3580, 534)
-collision_layer = 1
-
-[node name="Visual" type="ColorRect" parent="Obstacles/Block05"]
-offset_left = -54.0
-offset_top = -66.0
-offset_right = 54.0
-offset_bottom = 66.0
-color = Color(0.44, 0.38, 0.32, 1)
-
-[node name="CollisionShape2D" type="CollisionShape2D" parent="Obstacles/Block05"]
-shape = SubResource("RectangleShape2D_block")
-
-[node name="Players" type="Node2D" parent="."]
-
-[node name="ArenaCamera" type="Camera2D" parent="."]
-position = Vector2(2000, 360)
+[node name="ArenaCamera" type="Camera2D" parent="." unique_id=134108021]
 enabled = false
 position_smoothing_enabled = true
-position_smoothing_speed = 10.0
+position_smoothing_speed = 12.0
 
-[node name="TouchControls" parent="." instance=ExtResource("2_touch")]
+[node name="TouchControls" parent="." unique_id=247290250 instance=ExtResource("2_touch")]
 
-[node name="UIScore" type="CanvasLayer" parent="."]
-layer = 2
+[node name="UIScore" type="CanvasLayer" parent="." unique_id=1556048239]
+layer = 8
 
-[node name="ScoreLabel" type="Label" parent="UIScore"]
+[node name="Minimap" type="TextureRect" parent="UIScore"]
+layout_mode = 0
 offset_left = 16.0
 offset_top = 12.0
-offset_right = 620.0
-offset_bottom = 220.0
+offset_right = 240.0
+offset_bottom = 236.0
+mouse_filter = 2
+expand_mode = 1
+texture_filter = 1
+script = ExtResource("3_minimap")
+
+[node name="ScoreLabel" type="Label" parent="UIScore" unique_id=714376262]
+offset_left = 252.0
+offset_top = 12.0
+offset_right = 720.0
+offset_bottom = 120.0
 theme_override_font_sizes/font_size = 20
-text = "Очки: —"
+text = "Игроки: —"
 autowrap_mode = 2
 
-[node name="LeaveLobbyButton" type="Button" parent="UIScore"]
+[node name="LeaveLobbyButton" type="Button" parent="UIScore" unique_id=1347061682]
 offset_left = 16.0
-offset_top = 232.0
+offset_top = 248.0
 offset_right = 320.0
-offset_bottom = 278.0
+offset_bottom = 294.0
 theme_override_font_sizes/font_size = 18
 text = "Выйти в лобби"

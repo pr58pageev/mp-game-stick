@@ -1,0 +1,23 @@
+[gd_scene format=3 uid="uid://b3meatdrop001"]
+
+[ext_resource type="Script" path="res://scripts/DroppedMeat.gd" id="1_script"]
+
+[sub_resource type="CircleShape2D" id="CircleShape2D_meat"]
+radius = 10.0
+
+[node name="DroppedMeat" type="Node2D"]
+y_sort_enabled = true
+script = ExtResource("1_script")
+
+[node name="Sprite2D" type="Sprite2D" parent="."]
+centered = true
+texture_filter = 1
+
+[node name="Area2D" type="Area2D" parent="."]
+collision_layer = 0
+collision_mask = 2
+monitoring = true
+monitorable = true
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("CircleShape2D_meat")
